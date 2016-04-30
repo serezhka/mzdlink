@@ -4,3 +4,6 @@
 [submodule "minitouch"]
 	path = minitouch
 	url = https://github.com/openstf/minitouch/
+[submodule "evtest"]
+	path = evtest
+	url = git://anongit.freedesktop.org/evtest
