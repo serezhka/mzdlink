@@ -1,5 +1,12 @@
 # mzd-android-link
 ### dev notes
+##### minicap's run.sh new line characters problem
+    Error:
+      run.sh: line 2: $'\r': command not found
+      
+    Solution:
+      sed -i 's/\r$//' run.sh
+      
 ##### minicap's run.sh permission denied
     Error:
       /system/bin/sh: /data/local/tmp/minicap-devel/minicap: can't execute: Permission denied
@@ -14,6 +21,7 @@
 ##### minicap's example nodejs module not found
     Error:
       Cannot find module 'ws' (and|or espress)
+      
     Solution:
       * npm install --save ws
       * npm install express
