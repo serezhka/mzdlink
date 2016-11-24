@@ -1,4 +1,4 @@
-# mzd-android-link
+# mzdlink
 ### dev notes
 ##### minicap's run.sh new line characters problem
     Error:
