@@ -23,7 +23,6 @@ public class AdbClient {
     private static final Logger LOGGER = Logger.getLogger(AdbClient.class);
 
     public AdbClient() throws AdbException {
-        execCommand(ADB, KILL_SERVER);
         execCommand(ADB, START_SERVER);
     }
 
@@ -63,7 +62,7 @@ public class AdbClient {
             }
             throw new AdbException("Unable to get display orientation.");
         } catch (IOException e) {
-            throw new AdbException(e);
+            throw new AdbException("Unable to get display orientation.", e);
         }
     }
 

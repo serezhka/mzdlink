@@ -18,12 +18,10 @@ public abstract class ReconnectableSocketClient extends Thread {
 
     private final SocketAddress socketAddress;
     private final int reconnectDelay;
-    private final int bufferSize;
 
     public ReconnectableSocketClient(SocketAddress socketAddress, int reconnectDelay, int bufferSize) {
         this.socketAddress = socketAddress;
         this.reconnectDelay = reconnectDelay;
-        this.bufferSize = bufferSize;
         byteBuffer = ByteBuffer.allocateDirect(bufferSize);
         byteBuffer.order(ByteOrder.nativeOrder());
     }
@@ -33,7 +31,7 @@ public abstract class ReconnectableSocketClient extends Thread {
         while (!interrupted()) {
             try (SocketChannel socketChannel = SocketChannel.open()) {
                 socketChannel.configureBlocking(true);
-                socketChannel.socket().setReceiveBufferSize(bufferSize);
+                socketChannel.socket().setReceiveBufferSize(byteBuffer.capacity());
                 socketChannel.socket().setKeepAlive(true);
                 socketChannel.socket().setReuseAddress(true);
                 socketChannel.socket().setSoLinger(false, 0);

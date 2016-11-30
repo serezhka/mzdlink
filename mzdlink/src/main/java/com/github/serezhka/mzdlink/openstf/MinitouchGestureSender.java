@@ -14,7 +14,7 @@ public abstract class MinitouchGestureSender extends ReconnectableSocketClient {
 
     public void sendGesture(byte[] gesture) {
         synchronized (byteBuffer) {
-            if (byteBuffer.remaining() > gesture.length)
+            if (byteBuffer.remaining() >= gesture.length)
                 byteBuffer.put(gesture);
             byteBuffer.notify();
         }

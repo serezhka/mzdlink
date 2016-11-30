@@ -11,4 +11,8 @@ public class AdbException extends Exception {
     public AdbException(Throwable cause) {
         super(cause);
     }
+
+    public AdbException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

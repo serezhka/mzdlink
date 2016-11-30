@@ -35,6 +35,8 @@
       document.body.appendChild(canvas);
 
       var g = canvas.getContext('2d');
+	  g.fillStyle="#FF0000";
+	  g.font = 'italic small-caps bold 15px arial';
 
       var landscape = false;
 
@@ -62,6 +64,9 @@
       hammer.on("hammer.input panmove", function(evt) {
         var x, origX = evt.pointers[0].layerX;
         var y, origY = evt.pointers[0].layerY;
+		g.clearRect(0, 0, 100, 100);
+		g.fillText(origX + " : " + origY, 10, 20);
+		if (wsGesture.readyState !== WebSocket.OPEN) return;
         if (landscape) {
           x = Math.floor(MOBILE_SCREEN.x * origX / MAZDA_SCREEN.x);
           y = MOBILE_SCREEN.y - Math.floor(MOBILE_SCREEN.y * origY / MAZDA_SCREEN.y);

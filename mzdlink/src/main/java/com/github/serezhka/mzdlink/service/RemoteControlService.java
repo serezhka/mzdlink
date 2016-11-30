@@ -44,11 +44,15 @@ public class RemoteControlService {
             while (!Thread.interrupted()) {
 
                 try {
+                    LOGGER.info("Waiting for device..");
                     adbClient.waitForDevice().waitFor();
+                    LOGGER.info("Device connected!");
 
                     deviceViewportListener = new DeviceViewportListener(adbClient, getViewportDelay) {
                         @Override
                         public void onDeviceViewportChanged(DeviceViewport deviceViewport) throws AdbException {
+
+                            LOGGER.info("Device viewport change: " + deviceViewport);
 
                             adbClient.forward("tcp:" + minicapPort, "localabstract:minicap");
                             adbClient.forward("tcp:" + minitouchPort, "localabstract:minitouch");
