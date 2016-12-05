@@ -93,6 +93,8 @@ public class RemoteControlService {
                     minitouchGestureSender.start();
                     deviceViewportListener.join();
 
+                    adbClient.stopForwarding();
+
                 } catch (InterruptedException | AdbException e) {
                     LOGGER.info("remote control service", e);
                 } finally {

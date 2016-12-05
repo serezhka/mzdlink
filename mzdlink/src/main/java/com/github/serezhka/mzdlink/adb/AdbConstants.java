@@ -16,6 +16,7 @@ public interface AdbConstants {
     String DUMPSYS = "dumpsys";
     String WINDOW = "window";
     String FORWARD = "forward";
+    String REMOVE_ALL = "--remove-all";
     String DISPLAYS = "displays";
     String MKDIR = "mkdir";
     String GET_STATE = "get-state";

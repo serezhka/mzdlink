@@ -82,6 +82,10 @@ public class AdbClient {
         execCommand(ADB, FORWARD, local, remote);
     }
 
+    public void stopForwarding() throws AdbException {
+        execCommand(ADB, FORWARD, REMOVE_ALL);
+    }
+
     public Process shell(String... command) throws AdbException {
         return runCommand(Stream.concat(Arrays.stream(new String[]{ADB, SHELL}), Arrays.stream(command)).toArray(String[]::new));
     }

@@ -23,7 +23,7 @@ public abstract class ReconnectableSocketClient extends Thread {
         this.socketAddress = socketAddress;
         this.reconnectDelay = reconnectDelay;
         byteBuffer = ByteBuffer.allocateDirect(bufferSize);
-        byteBuffer.order(ByteOrder.nativeOrder());
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
