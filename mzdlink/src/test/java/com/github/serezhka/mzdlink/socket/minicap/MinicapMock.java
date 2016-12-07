@@ -1,4 +1,4 @@
-package com.github.serezhka.mzdlink.openstf;
+package com.github.serezhka.mzdlink.socket.minicap;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -29,7 +29,7 @@ public class MinicapMock extends Thread {
 
             // Minicap header byte buffer
             ByteBuffer minicapHeaderByteBuffer = ByteBuffer.allocateDirect(24);
-            minicapHeaderByteBuffer.order(ByteOrder.nativeOrder());
+            minicapHeaderByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
             minicapHeaderByteBuffer.put((byte) 1); // Version
             minicapHeaderByteBuffer.put((byte) 23); // Header size
             minicapHeaderByteBuffer.putInt(666); // Process id

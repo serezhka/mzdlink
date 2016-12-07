@@ -1,4 +1,6 @@
-package com.github.serezhka.mzdlink.openstf;
+package com.github.serezhka.mzdlink.socket.minitouch;
+
+import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
 
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;

@@ -4,9 +4,9 @@ import com.github.serezhka.mzdlink.adb.AdbClient;
 import com.github.serezhka.mzdlink.adb.DeviceViewport;
 import com.github.serezhka.mzdlink.adb.exception.AdbException;
 import com.github.serezhka.mzdlink.adb.listener.DeviceViewportListener;
-import com.github.serezhka.mzdlink.openstf.Header;
-import com.github.serezhka.mzdlink.openstf.MinicapImageReceiver;
-import com.github.serezhka.mzdlink.openstf.MinitouchGestureSender;
+import com.github.serezhka.mzdlink.socket.minicap.Header;
+import com.github.serezhka.mzdlink.socket.minicap.MinicapImageReceiver;
+import com.github.serezhka.mzdlink.socket.minitouch.MinitouchGestureSender;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,28 +48,28 @@ public class RemoteControlService {
                     adbClient.waitForDevice().waitFor();
                     LOGGER.info("Device connected!");
 
+                    adbClient.forward("tcp:" + minicapPort, "localabstract:minicap");
+                    adbClient.forward("tcp:" + minitouchPort, "localabstract:minitouch");
+
+                    // Start minitouch
+                    if (minitouchProcess == null || !minitouchProcess.isAlive()) {
+                        killProcess(minitouchProcess);
+                        minitouchProcess = adbClient.shell("/data/local/tmp/minitouch");
+                    }
+
                     deviceViewportListener = new DeviceViewportListener(adbClient, getViewportDelay) {
                         @Override
                         public void onDeviceViewportChanged(DeviceViewport deviceViewport) throws AdbException {
 
                             LOGGER.info("Device viewport change: " + deviceViewport);
 
-                            adbClient.forward("tcp:" + minicapPort, "localabstract:minicap");
-                            adbClient.forward("tcp:" + minitouchPort, "localabstract:minitouch");
-
                             // Start minicap
                             killProcess(minicapProcess);
                             int targetWidth = deviceViewport.isLandscape() ? minicapTargetWidth : minicapTargetHeight;
                             int targetHeight = deviceViewport.isLandscape() ? minicapTargetHeight : minicapTargetWidth;
                             String minicapArgs = "\"-P " + deviceViewport.getWidth() + "x" + deviceViewport.getHeight()
-                                    + "@" + targetWidth + "x" + targetHeight + "/0\"";
+                                    + "@" + targetWidth + "x" + targetHeight + "/0 -Q " + minicapImageQuality + "\"";
                             minicapProcess = adbClient.shell("\"LD_LIBRARY_PATH=/data/local/tmp\"", "/data/local/tmp/minicap", minicapArgs);
-
-                            // Start minitouch
-                            if (minitouchProcess == null || !minitouchProcess.isAlive()) {
-                                killProcess(minitouchProcess);
-                                minitouchProcess = adbClient.shell("/data/local/tmp/minitouch");
-                            }
                         }
                     };
 
@@ -159,6 +159,9 @@ public class RemoteControlService {
 
     @Value("${config.minicap.targetHeight}")
     private int minicapTargetHeight;
+
+    @Value("${config.minicap.imageQuality}")
+    private int minicapImageQuality;
 
     @Value("${config.minitouch.ip}")
     private String minitouchIp;

@@ -1,12 +1,15 @@
-package com.github.serezhka.mzdlink.controller.websocket;
+package com.github.serezhka.mzdlink.websocket;
 
+import com.github.serezhka.mzdlink.service.RemoteControlService;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import javax.annotation.PostConstruct;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 
@@ -14,11 +17,28 @@ import java.util.Base64;
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
 @Controller
-public abstract class OneSessionWebSocketHandler extends TextWebSocketHandler {
+public class MzdlinkWebsocketHandler extends TextWebSocketHandler {
 
-    private static final Logger LOGGER = Logger.getLogger(OneSessionWebSocketHandler.class);
+    private static final Logger LOGGER = Logger.getLogger(MzdlinkWebsocketHandler.class);
+
+    private final RemoteControlService remoteControlService;
 
     private WebSocketSession session;
+
+    @Autowired
+    public MzdlinkWebsocketHandler(RemoteControlService remoteControlService) {
+        this.remoteControlService = remoteControlService;
+    }
+
+    @PostConstruct
+    public void init() {
+        remoteControlService.setDeviceScreenListener(this::sendMessage);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        remoteControlService.processGesture(message.asBytes());
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {

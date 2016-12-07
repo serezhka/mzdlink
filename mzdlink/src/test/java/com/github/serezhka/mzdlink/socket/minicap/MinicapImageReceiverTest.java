@@ -1,4 +1,4 @@
-package com.github.serezhka.mzdlink.openstf;
+package com.github.serezhka.mzdlink.socket.minicap;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;

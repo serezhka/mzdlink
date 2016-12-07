@@ -1,7 +1,6 @@
 package com.github.serezhka.mzdlink.config;
 
-import com.github.serezhka.mzdlink.controller.websocket.GestureWebSocketHandler;
-import com.github.serezhka.mzdlink.controller.websocket.VideoWebSocketHandler;
+import com.github.serezhka.mzdlink.websocket.MzdlinkWebsocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -16,24 +15,18 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final VideoWebSocketHandler videoWebSocketHandler;
-    private final GestureWebSocketHandler gestureWebSocketHandler;
+    private final MzdlinkWebsocketHandler mzdlinkWebsocketHandler;
 
-    @Value("${config.mzdlink.videoUri}")
-    private String videoUri;
-
-    @Value("${config.mzdlink.gestureUri}")
-    private String gestureUri;
+    @Value("${config.mzdlink.wsUri}")
+    private String wsUri;
 
     @Autowired
-    public WebSocketConfig(VideoWebSocketHandler videoWebSocketHandler, GestureWebSocketHandler gestureWebSocketHandler) {
-        this.videoWebSocketHandler = videoWebSocketHandler;
-        this.gestureWebSocketHandler = gestureWebSocketHandler;
+    public WebSocketConfig(MzdlinkWebsocketHandler mzdlinkWebsocketHandler) {
+        this.mzdlinkWebsocketHandler = mzdlinkWebsocketHandler;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry webSocketHandlerRegistry) {
-        webSocketHandlerRegistry.addHandler(videoWebSocketHandler, videoUri).setAllowedOrigins("*");
-        webSocketHandlerRegistry.addHandler(gestureWebSocketHandler, gestureUri).setAllowedOrigins("*");
+        webSocketHandlerRegistry.addHandler(mzdlinkWebsocketHandler, wsUri).setAllowedOrigins("*");
     }
 }

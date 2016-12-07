@@ -3,8 +3,7 @@
   function startMzdlink() {
     $(document).ready(function() {
 
-      var wsVideo = new ReconnectingWebSocket("ws://127.0.0.1:8080/video");
-      var wsGesture = new ReconnectingWebSocket("ws://127.0.0.1:8080/gesture");
+      var ws = new ReconnectingWebSocket("ws://127.0.0.1:8080/mzdlink");
 
       var MOBILE_SCREEN = {
         x: 1920,
@@ -35,12 +34,12 @@
       document.body.appendChild(canvas);
 
       var g = canvas.getContext('2d');
-	  g.fillStyle="#FF0000";
-	  g.font = 'italic small-caps bold 15px arial';
+      g.fillStyle = "#FF0000";
+      g.font = 'italic small-caps bold 15px arial';
 
       var landscape = false;
 
-      wsVideo.onmessage = function(evt) {
+      ws.onmessage = function(evt) {
         var img = new Image();
         img.onload = function() {
           if (landscape = img.width > img.height) {
@@ -64,15 +63,15 @@
       hammer.on("hammer.input panmove", function(evt) {
         var x, origX = evt.pointers[0].layerX;
         var y, origY = evt.pointers[0].layerY;
-		g.clearRect(0, 0, 100, 100);
-		g.fillText(origX + " : " + origY, 10, 20);
-		if (wsGesture.readyState !== WebSocket.OPEN) return;
+        g.clearRect(0, 0, 100, 100);
+        g.fillText(origX + " : " + origY, 10, 20);
+        if (ws.readyState !== WebSocket.OPEN) return;
         if (landscape) {
           x = Math.floor(MOBILE_SCREEN.x * origX / MAZDA_SCREEN.x);
           y = MOBILE_SCREEN.y - Math.floor(MOBILE_SCREEN.y * origY / MAZDA_SCREEN.y);
         } else {
           if (origX < PORTRAIT_MODE.x || origX > PORTRAIT_MODE.x + PORTRAIT_MODE.width) {
-            wsGesture.send("u 0\nc\n");
+            ws.send("u 0\nc\n");
             return;
           }
           y = Math.floor(MOBILE_SCREEN.y * (origX - PORTRAIT_MODE.x) / PORTRAIT_MODE.width);
@@ -81,13 +80,13 @@
         switch (evt.type) {
           case "hammer.input":
             if (evt.isFirst) {
-              wsGesture.send("d 0 " + y + " " + x + "\nc\n");
+              ws.send("d 0 " + y + " " + x + "\nc\n");
             } else if (evt.isFinal) {
-              wsGesture.send("u 0\nc\n");
+              ws.send("u 0\nc\n");
             }
             break;
           case "panmove":
-            wsGesture.send("m 0 " + y + " " + x + "\nc\n");
+            ws.send("m 0 " + y + " " + x + "\nc\n");
             break;
         }
       });

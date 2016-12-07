@@ -1,4 +1,4 @@
-package com.github.serezhka.mzdlink.openstf;
+package com.github.serezhka.mzdlink.socket;
 
 import org.apache.log4j.Logger;
 

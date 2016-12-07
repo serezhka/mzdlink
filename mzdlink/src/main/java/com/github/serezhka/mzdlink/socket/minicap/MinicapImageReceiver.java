@@ -1,4 +1,6 @@
-package com.github.serezhka.mzdlink.openstf;
+package com.github.serezhka.mzdlink.socket.minicap;
+
+import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -54,7 +56,7 @@ public abstract class MinicapImageReceiver extends ReconnectableSocketClient {
 
                         // Read image frame size and allocate new image buffer
                         if (byteBuffer.remaining() >= 4)
-                            imageFrame = ByteBuffer.allocate(byteBuffer.getInt()); // TODO or reuse old ?!
+                            imageFrame = ByteBuffer.allocate(byteBuffer.getInt());
 
                     } else {
 
