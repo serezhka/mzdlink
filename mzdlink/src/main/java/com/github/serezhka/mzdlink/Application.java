@@ -1,15 +1,14 @@
 package com.github.serezhka.mzdlink;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.github.serezhka.mzdlink.config.ApplicationConfig;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-@SpringBootApplication
 public class Application {
 
     public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
+        new AnnotationConfigApplicationContext(ApplicationConfig.class);
     }
 }

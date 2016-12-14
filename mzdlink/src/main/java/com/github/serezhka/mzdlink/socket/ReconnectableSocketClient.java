@@ -1,57 +1,61 @@
 package com.github.serezhka.mzdlink.socket;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.log4j.Logger;
 
 import java.net.SocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.SocketChannel;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-public abstract class ReconnectableSocketClient extends Thread {
+public class ReconnectableSocketClient extends Thread {
 
     private static final Logger LOGGER = Logger.getLogger(ReconnectableSocketClient.class);
 
-    protected final ByteBuffer byteBuffer;
-
     private final SocketAddress socketAddress;
     private final int reconnectDelay;
+    private final ChannelHandler channelHandler;
 
-    public ReconnectableSocketClient(SocketAddress socketAddress, int reconnectDelay, int bufferSize) {
+    public ReconnectableSocketClient(SocketAddress socketAddress,
+                                     int reconnectDelay,
+                                     ChannelHandler channelHandler) {
         this.socketAddress = socketAddress;
         this.reconnectDelay = reconnectDelay;
-        byteBuffer = ByteBuffer.allocateDirect(bufferSize);
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        this.channelHandler = channelHandler;
     }
 
     @Override
     public void run() {
         while (!interrupted()) {
-            try (SocketChannel socketChannel = SocketChannel.open()) {
-                socketChannel.configureBlocking(true);
-                socketChannel.socket().setReceiveBufferSize(byteBuffer.capacity());
-                socketChannel.socket().setKeepAlive(true);
-                socketChannel.socket().setReuseAddress(true);
-                socketChannel.socket().setSoLinger(false, 0);
-                socketChannel.socket().setSoTimeout(0);
-                socketChannel.socket().setTcpNoDelay(true);
-
+            Bootstrap bootstrap = new Bootstrap();
+            EventLoopGroup group = new NioEventLoopGroup();
+            try {
+                bootstrap.group(group)
+                        .channel(NioSocketChannel.class)
+                        .remoteAddress(socketAddress)
+                        .handler(new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            public void initChannel(SocketChannel ch) throws Exception {
+                                ch.pipeline().addLast(channelHandler);
+                            }
+                        });
                 LOGGER.info("Connecting to " + socketAddress);
-                socketChannel.connect(socketAddress);
-
-                if (socketChannel.finishConnect()) {
-                    LOGGER.info("Connected to " + socketAddress);
-                    onConnect(socketChannel);
-                }
+                ChannelFuture channelFuture = bootstrap.connect().sync();
+                LOGGER.info("Connected to " + socketAddress);
+                channelFuture.channel().closeFuture().sync();
             } catch (Exception e) {
                 if (e instanceof InterruptedException) return;
-                LOGGER.error(e);
+                LOGGER.debug(e);
             } finally {
                 LOGGER.info("Disconnected from " + socketAddress);
-                byteBuffer.clear();
-                onDisconnect();
+                group.shutdownGracefully();
             }
 
             try {
@@ -61,8 +65,4 @@ public abstract class ReconnectableSocketClient extends Thread {
             }
         }
     }
-
-    protected abstract void onConnect(SocketChannel socketChannel) throws Exception;
-
-    protected abstract void onDisconnect();
 }

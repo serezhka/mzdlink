@@ -1,91 +1,70 @@
 package com.github.serezhka.mzdlink.socket.minicap;
 
-import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
-
-import java.io.IOException;
-import java.net.SocketAddress;
-import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.SimpleChannelInboundHandler;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-public abstract class MinicapImageReceiver extends ReconnectableSocketClient {
+@ChannelHandler.Sharable
+public abstract class MinicapImageReceiver extends SimpleChannelInboundHandler<ByteBuf> {
 
     private Header header;
-    private ByteBuffer imageFrame;
-
-    public MinicapImageReceiver(SocketAddress socketAddress, int reconnectDelay, int bufferSize) {
-        super(socketAddress, reconnectDelay, bufferSize);
-    }
+    private ByteBuf imageFrame;
 
     @Override
-    protected void onConnect(SocketChannel socketChannel) throws IOException {
+    protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
 
-        int bytesTotalRead;
-        while ((bytesTotalRead = socketChannel.read(byteBuffer)) > -1) {
+        while (msg.readableBytes() > 0) {
 
-            if (bytesTotalRead > 0) {
+            if (header == null) {
 
-                byteBuffer.flip();
-                while (byteBuffer.hasRemaining()) {
+                // Read minicap's header
+                header = new Header();
+                header.setVersion(msg.readByte() & 0xFF);
+                header.setSize(msg.readByte() & 0xFF);
+                header.setPid((int) msg.readUnsignedIntLE());
+                header.setRealWidth((int) msg.readUnsignedIntLE());
+                header.setRealHeight((int) msg.readUnsignedIntLE());
+                header.setVirtualWidth((int) msg.readUnsignedIntLE());
+                header.setVirtualHeight((int) msg.readUnsignedIntLE());
+                header.setOrientation(msg.readByte() & 0xFF);
+                header.setQuirk(msg.readByte() & 0xFF);
 
-                    if (header == null) {
+                onHeaderReceived(header);
 
-                        // Read minicap's header
-                        try {
-                            header = new Header();
-                            header.setVersion(byteBuffer.get() & 0xFF);
-                            header.setSize(byteBuffer.get() & 0xFF);
-                            header.setPid(byteBuffer.getInt());
-                            header.setRealWidth(byteBuffer.getInt());
-                            header.setRealHeight(byteBuffer.getInt());
-                            header.setVirtualWidth(byteBuffer.getInt());
-                            header.setVirtualHeight(byteBuffer.getInt());
-                            header.setOrientation(byteBuffer.get() & 0xFF);
-                            header.setQuirk(byteBuffer.get() & 0xFF);
+            } else if (imageFrame == null) {
 
-                            onHeaderReceived(header);
+                // Read image frame size and allocate new image buffer
+                if (msg.readableBytes() >= 4)
+                    //imageFrame = ByteBuffer.allocate((int) msg.readUnsignedIntLE());
+                    imageFrame = ByteBufAllocator.DEFAULT.buffer((int) msg.readUnsignedIntLE()); // FIXME default, heap or direct
 
-                        } catch (BufferUnderflowException e) {
-                            throw new RuntimeException("Buffer too small for minicap's header? " + byteBuffer.capacity(), e);
-                        }
+            } else {
 
-                    } else if (imageFrame == null) {
+                // Read image frame
+                int bytesToRead = Math.min(imageFrame.writableBytes(), msg.readableBytes());
+                msg.readBytes(imageFrame, bytesToRead);
 
-                        // Read image frame size and allocate new image buffer
-                        if (byteBuffer.remaining() >= 4)
-                            imageFrame = ByteBuffer.allocate(byteBuffer.getInt());
-
-                    } else {
-
-                        // Read image frame
-                        int bytesToRead = Math.min(imageFrame.remaining(), byteBuffer.remaining());
-                        byteBuffer.get(imageFrame.array(), imageFrame.arrayOffset() + imageFrame.position(), bytesToRead);
-                        imageFrame.position(imageFrame.position() + bytesToRead);
-
-                        //while (byteBuffer.hasRemaining() && imageFrame.hasRemaining())
-                        //    imageFrame.put(byteBuffer.get());
-
-                        if (!imageFrame.hasRemaining()) {
-                            onReceive(imageFrame);
-                            imageFrame = null;
-                        }
-                    }
+                if (!imageFrame.isWritable()) {
+                    onReceive(imageFrame);
+                    imageFrame = null;
                 }
-                byteBuffer.compact();
             }
         }
     }
 
     @Override
-    protected void onDisconnect() {
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
         header = null;
         imageFrame = null;
     }
 
-    public abstract void onReceive(ByteBuffer byteBuffer);
+    public abstract void onReceive(ByteBuf imageFrame);
 
     public abstract void onHeaderReceived(Header header);
 }

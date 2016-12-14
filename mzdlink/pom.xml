@@ -10,12 +10,6 @@
     <name>mzdlink</name>
     <url>https://github.com/serezhka</url>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>1.4.2.RELEASE</version>
-    </parent>
-
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH_mm'Z'</maven.build.timestamp.format>
@@ -23,31 +17,37 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <java.version>1.8</java.version>
         <junit.version>4.12</junit.version>
+        <log4j.version>1.2.17</log4j.version>
         <netty.version>4.1.6.Final</netty.version>
+        <spring.version>4.3.4.RELEASE</spring.version>
+        <spring-boot-maven-plugin.version>1.4.2.RELEASE</spring-boot-maven-plugin.version>
     </properties>
 
     <dependencies>
 
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>${log4j.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.springframework</groupId>
-            <artifactId>spring-messaging</artifactId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>${netty.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
         </dependency>
 
     </dependencies>
@@ -57,6 +57,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
         <finalName>${project.artifactId}-${project.version}-${maven.build.timestamp}</finalName>

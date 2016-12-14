@@ -4,9 +4,11 @@ import com.github.serezhka.mzdlink.adb.AdbClient;
 import com.github.serezhka.mzdlink.adb.DeviceViewport;
 import com.github.serezhka.mzdlink.adb.exception.AdbException;
 import com.github.serezhka.mzdlink.adb.listener.DeviceViewportListener;
+import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
 import com.github.serezhka.mzdlink.socket.minicap.Header;
 import com.github.serezhka.mzdlink.socket.minicap.MinicapImageReceiver;
 import com.github.serezhka.mzdlink.socket.minitouch.MinitouchGestureSender;
+import io.netty.buffer.ByteBuf;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
@@ -25,11 +26,13 @@ public class RemoteControlService {
     private static final Logger LOGGER = Logger.getLogger(RemoteControlService.class);
 
     private final AdbClient adbClient;
-
     private MinicapImageReceiver minicapImageReceiver;
     private MinitouchGestureSender minitouchGestureSender;
+
     private DeviceViewportListener deviceViewportListener;
     private DeviceScreenListener deviceScreenListener;
+    private Thread minicapSocketClient;
+    private Thread minitouchSocketClient;
     private Process minicapProcess;
     private Process minitouchProcess;
 
@@ -40,6 +43,23 @@ public class RemoteControlService {
 
     @PostConstruct
     private void init() {
+
+        minicapImageReceiver = new MinicapImageReceiver() {
+
+            @Override
+            public void onReceive(ByteBuf imageFrame) {
+                if (deviceScreenListener != null) deviceScreenListener.onScreenUpdate(imageFrame);
+            }
+
+            @Override
+            public void onHeaderReceived(Header header) {
+                LOGGER.info("Minicap's header received : " + header);
+            }
+        };
+
+        minitouchGestureSender = new MinitouchGestureSender() {
+        };
+
         new Thread(() -> {
             while (!Thread.interrupted()) {
 
@@ -73,24 +93,12 @@ public class RemoteControlService {
                         }
                     };
 
-                    minicapImageReceiver = new MinicapImageReceiver(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapBufferSize) {
-                        @Override
-                        public void onReceive(ByteBuffer byteBuffer) {
-                            if (deviceScreenListener != null) deviceScreenListener.onScreenUpdate(byteBuffer);
-                        }
-
-                        @Override
-                        public void onHeaderReceived(Header header) {
-                            LOGGER.info("Minicap's header received : " + header);
-                        }
-                    };
-
-                    minitouchGestureSender = new MinitouchGestureSender(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchBufferSize) {
-                    };
+                    minicapSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver);
+                    minitouchSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender);
 
                     deviceViewportListener.start();
-                    minicapImageReceiver.start();
-                    minitouchGestureSender.start();
+                    minicapSocketClient.start();
+                    minitouchSocketClient.start();
                     deviceViewportListener.join();
 
                     adbClient.stopForwarding();
@@ -98,13 +106,13 @@ public class RemoteControlService {
                 } catch (InterruptedException | AdbException e) {
                     LOGGER.info("remote control service", e);
                 } finally {
-                    if (minicapImageReceiver != null) {
-                        minicapImageReceiver.interrupt();
-                        minicapImageReceiver = null;
+                    if (minicapSocketClient != null) {
+                        minicapSocketClient.interrupt();
+                        minicapSocketClient = null;
                     }
-                    if (minitouchGestureSender != null) {
-                        minitouchGestureSender.interrupt();
-                        minitouchGestureSender = null;
+                    if (minitouchSocketClient != null) {
+                        minitouchSocketClient.interrupt();
+                        minitouchSocketClient = null;
                     }
                     if (deviceViewportListener != null) {
                         deviceViewportListener.interrupt();
@@ -117,7 +125,7 @@ public class RemoteControlService {
         }).start();
     }
 
-    public void processGesture(byte[] gesture) {
+    public void processGesture(ByteBuf gesture) {
         if (minitouchGestureSender != null) minitouchGestureSender.sendGesture(gesture);
     }
 
@@ -127,7 +135,7 @@ public class RemoteControlService {
 
     @FunctionalInterface
     public interface DeviceScreenListener {
-        void onScreenUpdate(ByteBuffer byteBuffer);
+        void onScreenUpdate(ByteBuf image);
     }
 
     private void killProcess(Process process) {

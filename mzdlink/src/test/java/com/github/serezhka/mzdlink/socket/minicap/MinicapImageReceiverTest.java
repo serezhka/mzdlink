@@ -1,5 +1,8 @@
 package com.github.serezhka.mzdlink.socket.minicap;
 
+import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
+import io.netty.buffer.ByteBuf;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -9,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.nio.ByteBuffer;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
@@ -24,10 +26,13 @@ public class MinicapImageReceiverTest extends JFrame {
     public MinicapImageReceiverTest() {
 
         SocketAddress socketAddress = new InetSocketAddress(HOST, PORT);
-        Thread minicapReceiverThread = new Thread(new MinicapImageReceiver(socketAddress, 2000, 4096) {
+
+        MinicapImageReceiver minicapImageReceiver = new MinicapImageReceiver() {
             @Override
-            public void onReceive(ByteBuffer byteBuffer) {
-                try (InputStream inputStream = new ByteArrayInputStream(byteBuffer.array())) {
+            public void onReceive(ByteBuf byteBuffer) {
+                byte[] bytes = new byte[byteBuffer.readableBytes()];
+                byteBuffer.readBytes(bytes);
+                try (InputStream inputStream = new ByteArrayInputStream(bytes)) {
                     synchronized (MinicapImageReceiverTest.this) {
                         image = ImageIO.read(inputStream);
                     }
@@ -41,8 +46,10 @@ public class MinicapImageReceiverTest extends JFrame {
             public void onHeaderReceived(Header header) {
                 System.err.println("Minicap's header received: " + header);
             }
-        });
-        minicapReceiverThread.start();
+        };
+
+        ReconnectableSocketClient minicapClient = new ReconnectableSocketClient(socketAddress, 2000, minicapImageReceiver);
+        minicapClient.start();
 
         setSize(800, 800);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
