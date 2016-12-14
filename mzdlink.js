@@ -34,8 +34,6 @@
             document.body.appendChild(canvas);
 
             var g = canvas.getContext('2d');
-            g.fillStyle = "#FF0000";
-            g.font = 'italic small-caps bold 15px arial';
 
             var landscape = false;
 
@@ -56,17 +54,17 @@
             };
 
             // Touch hook
-            var hammer = new Hammer(canvas);
-            hammer.get('pan').set({
-                direction: Hammer.DIRECTION_ALL
-            });
-            hammer.on("hammer.input panmove", function (evt) {
+            var hammer = new Hammer.Manager(canvas);
+			hammer.add( new Hammer.Pan({ direction: Hammer.DIRECTION_ALL, threshold: 0 }) );
+			hammer.add( new Hammer.Press() );
+			hammer.add( new Hammer.Tap() );
+			
+            hammer.on("tap press pressup panstart panmove panend", function (evt) {
                 var origX = evt.center.x;
                 var origY = evt.center.y;
                 var x;
                 var y;
-                g.clearRect(0, 0, 100, 100);
-                g.fillText(origX + " : " + origY, 10, 20);
+                console.log(origX + " : " + origY + " - " + evt.type);
                 if (ws.readyState !== WebSocket.OPEN) {
                     return;
                 }
@@ -82,16 +80,24 @@
                     x = Math.floor(MOBILE_SCREEN.x * origY / MAZDA_SCREEN.y);
                 }
                 switch (evt.type) {
-                    case "hammer.input":
-                        if (evt.isFirst) {
-                            ws.send("d 0 " + y + " " + x + "\nc\n");
-                        } else if (evt.isFinal) {
-                            ws.send("u 0\nc\n");
-                        }
+                    case "tap":
+                        ws.send("d 0 " + y + " " + x + "\nc\nu 0\nc\n");
                         break;
+					case "press":
+                        ws.send("d 0 " + y + " " + x + "\nc\n");
+                        break;
+					case "pressup":
+                        ws.send("u 0\nc\n");
+                        break;
+					case "panstart":
+						ws.send("d 0 " + y + " " + x + "\nc\n");
+						break;
                     case "panmove":
                         ws.send("m 0 " + y + " " + x + "\nc\n");
                         break;
+					case "panend":
+						ws.send("m 0 " + y + " " + x + "\nc\nu 0\nc\n");
+                        break;			
                 }
             });
         });
