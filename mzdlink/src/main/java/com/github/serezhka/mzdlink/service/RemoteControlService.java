@@ -9,6 +9,7 @@ import com.github.serezhka.mzdlink.socket.minicap.Header;
 import com.github.serezhka.mzdlink.socket.minicap.MinicapImageReceiver;
 import com.github.serezhka.mzdlink.socket.minitouch.MinitouchGestureSender;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +27,8 @@ public class RemoteControlService {
     private static final Logger LOGGER = Logger.getLogger(RemoteControlService.class);
 
     private final AdbClient adbClient;
+    private final NioEventLoopGroup workerGroup;
+
     private MinicapImageReceiver minicapImageReceiver;
     private MinitouchGestureSender minitouchGestureSender;
 
@@ -37,8 +40,10 @@ public class RemoteControlService {
     private Process minitouchProcess;
 
     @Autowired
-    public RemoteControlService(AdbClient adbClient) {
+    public RemoteControlService(AdbClient adbClient,
+                                NioEventLoopGroup workerGroup) {
         this.adbClient = adbClient;
+        this.workerGroup = workerGroup;
     }
 
     @PostConstruct
@@ -93,8 +98,8 @@ public class RemoteControlService {
                         }
                     };
 
-                    minicapSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver);
-                    minitouchSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender);
+                    minicapSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver, workerGroup);
+                    minitouchSocketClient = new ReconnectableSocketClient(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender, workerGroup);
 
                     deviceViewportListener.start();
                     minicapSocketClient.start();

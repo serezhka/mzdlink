@@ -2,6 +2,7 @@ package com.github.serezhka.mzdlink.socket.minicap;
 
 import com.github.serezhka.mzdlink.socket.ReconnectableSocketClient;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.nio.NioEventLoopGroup;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -48,7 +49,7 @@ public class MinicapImageReceiverTest extends JFrame {
             }
         };
 
-        ReconnectableSocketClient minicapClient = new ReconnectableSocketClient(socketAddress, 2000, minicapImageReceiver);
+        ReconnectableSocketClient minicapClient = new ReconnectableSocketClient(socketAddress, 2000, minicapImageReceiver, new NioEventLoopGroup());
         minicapClient.start();
 
         setSize(800, 800);

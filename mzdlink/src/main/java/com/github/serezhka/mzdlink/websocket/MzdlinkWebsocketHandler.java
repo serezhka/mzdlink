@@ -3,7 +3,10 @@ package com.github.serezhka.mzdlink.websocket;
 import com.github.serezhka.mzdlink.service.RemoteControlService;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -24,7 +27,6 @@ import java.net.InetSocketAddress;
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-@SuppressWarnings("Duplicates")
 @ChannelHandler.Sharable
 @Controller
 public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
@@ -32,6 +34,8 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
     private static final Logger LOGGER = Logger.getLogger(MzdlinkWebsocketHandler.class);
 
     private final RemoteControlService remoteControlService;
+    private final NioEventLoopGroup bossGroup;
+    private final NioEventLoopGroup workerGroup;
 
     private ChannelHandlerContext ctx;
 
@@ -42,18 +46,22 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
     private int port;
 
     @Autowired
-    public MzdlinkWebsocketHandler(RemoteControlService remoteControlService) {
+    public MzdlinkWebsocketHandler(RemoteControlService remoteControlService,
+                                   NioEventLoopGroup bossGroup,
+                                   NioEventLoopGroup workerGroup) {
         this.remoteControlService = remoteControlService;
+        this.bossGroup = bossGroup;
+        this.workerGroup = workerGroup;
     }
 
     @PostConstruct
     public void init() {
         remoteControlService.setDeviceScreenListener(this::sendBase64ByteBuf);
 
+        UniqueConnectionFilter connectionFilter = new UniqueConnectionFilter();
+
         new Thread(() -> {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
-            EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-            EventLoopGroup workerGroup = new NioEventLoopGroup();
             try {
                 serverBootstrap.group(bossGroup, workerGroup)
                         .channel(NioServerSocketChannel.class)
@@ -62,6 +70,7 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
                             @Override
                             public void initChannel(final SocketChannel ch) throws Exception {
                                 ch.pipeline().addLast(
+                                        connectionFilter,
                                         new HttpRequestDecoder(),
                                         new HttpObjectAggregator(65536),
                                         new HttpResponseEncoder(),
@@ -73,9 +82,6 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
                 serverBootstrap.bind().sync().channel().closeFuture().sync();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
-            } finally {
-                bossGroup.shutdownGracefully();
-                workerGroup.shutdownGracefully();
             }
         }).start();
     }
@@ -87,41 +93,21 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        synchronized (this) {
-            if (this.ctx == null) {
-                this.ctx = ctx;
-                LOGGER.info("Client " + ctx.channel().remoteAddress() + " connected to " + ctx.channel().localAddress());
-            } else {
-                ctx.disconnect();
-                LOGGER.info("Client " + ctx.channel().remoteAddress() + " connection to " + ctx.channel().localAddress() + " declined.");
-            }
-        }
+        this.ctx = ctx;
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-        synchronized (this) {
-            if (this.ctx != null && ctx.channel().id().equals(this.ctx.channel().id())) {
-                this.ctx = null;
-                LOGGER.info("Client " + ctx.channel().remoteAddress() + " disconnected from " + ctx.channel().localAddress());
-            }
-        }
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        LOGGER.error("Mzdlink exception", cause);
-        ctx.close();
+        this.ctx = null;
     }
 
     private void sendBase64ByteBuf(ByteBuf message) {
-        synchronized (this) {
+        try {
             if (ctx != null) {
-                ChannelFuture channelFuture = ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message)));
-                if (channelFuture.cause() != null) {
-                    channelFuture.cause().printStackTrace();
-                }
+                ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message)));
             }
+        } catch (Exception e) {
+            LOGGER.debug(e);
         }
     }
 }

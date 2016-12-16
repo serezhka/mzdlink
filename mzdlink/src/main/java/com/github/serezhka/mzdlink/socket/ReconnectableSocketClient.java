@@ -4,7 +4,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -22,22 +21,24 @@ public class ReconnectableSocketClient extends Thread {
     private final SocketAddress socketAddress;
     private final int reconnectDelay;
     private final ChannelHandler channelHandler;
+    private final NioEventLoopGroup workerGroup;
 
     public ReconnectableSocketClient(SocketAddress socketAddress,
                                      int reconnectDelay,
-                                     ChannelHandler channelHandler) {
+                                     ChannelHandler channelHandler,
+                                     NioEventLoopGroup workerGroup) {
         this.socketAddress = socketAddress;
         this.reconnectDelay = reconnectDelay;
         this.channelHandler = channelHandler;
+        this.workerGroup = workerGroup;
     }
 
     @Override
     public void run() {
         while (!interrupted()) {
             Bootstrap bootstrap = new Bootstrap();
-            EventLoopGroup group = new NioEventLoopGroup();
             try {
-                bootstrap.group(group)
+                bootstrap.group(workerGroup)
                         .channel(NioSocketChannel.class)
                         .remoteAddress(socketAddress)
                         .handler(new ChannelInitializer<SocketChannel>() {
@@ -55,7 +56,6 @@ public class ReconnectableSocketClient extends Thread {
                 LOGGER.debug(e);
             } finally {
                 LOGGER.info("Disconnected from " + socketAddress);
-                group.shutdownGracefully();
             }
 
             try {

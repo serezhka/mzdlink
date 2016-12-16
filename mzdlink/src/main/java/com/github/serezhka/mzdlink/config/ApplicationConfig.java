@@ -1,5 +1,6 @@
 package com.github.serezhka.mzdlink.config;
 
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -17,5 +18,15 @@ public class ApplicationConfig {
     @Bean
     public static PropertySourcesPlaceholderConfigurer placeHolderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
+    }
+
+    @Bean
+    public static NioEventLoopGroup bossGroup() {
+        return new NioEventLoopGroup();
+    }
+
+    @Bean
+    public static NioEventLoopGroup workerGroup() {
+        return new NioEventLoopGroup();
     }
 }
