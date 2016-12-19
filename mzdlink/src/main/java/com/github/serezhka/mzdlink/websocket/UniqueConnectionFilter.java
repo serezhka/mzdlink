@@ -22,13 +22,13 @@ public class UniqueConnectionFilter extends AbstractRemoteAddressFilter<InetSock
     protected boolean accept(ChannelHandlerContext ctx, InetSocketAddress socketAddress) throws Exception {
         synchronized (this) {
             if (connected) {
-                LOGGER.info("Client " + socketAddress.toString() + " connection rejected!");
+                LOGGER.info("Client " + socketAddress + " connection rejected!");
                 return false;
             } else {
-                LOGGER.info("Client " + socketAddress.toString() + " connection accepted!");
+                LOGGER.info("Client " + socketAddress + " connection accepted!");
                 connected = true;
                 ctx.channel().closeFuture().addListener((ChannelFutureListener) future -> {
-                    LOGGER.info("Client " + socketAddress.toString() + " disconnected!");
+                    LOGGER.info("Client " + socketAddress + " disconnected!");
                     connected = false;
                 });
                 return true;

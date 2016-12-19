@@ -19,6 +19,7 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
 import javax.annotation.PostConstruct;
@@ -28,7 +29,7 @@ import java.net.InetSocketAddress;
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
 @ChannelHandler.Sharable
-@Controller
+@Component
 public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 
     private static final Logger LOGGER = Logger.getLogger(MzdlinkWebsocketHandler.class);
@@ -85,6 +86,8 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
             }
         }).start();
     }
+
+
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {

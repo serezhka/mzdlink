@@ -13,7 +13,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.net.InetSocketAddress;
@@ -21,7 +21,7 @@ import java.net.InetSocketAddress;
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-@Service
+@Component
 public class RemoteControlService {
 
     private static final Logger LOGGER = Logger.getLogger(RemoteControlService.class);
@@ -92,9 +92,8 @@ public class RemoteControlService {
                             killProcess(minicapProcess);
                             int targetWidth = deviceViewport.isLandscape() ? minicapTargetWidth : minicapTargetHeight;
                             int targetHeight = deviceViewport.isLandscape() ? minicapTargetHeight : minicapTargetWidth;
-                            String minicapArgs = "\"-P " + deviceViewport.getWidth() + "x" + deviceViewport.getHeight()
-                                    + "@" + targetWidth + "x" + targetHeight + "/0 -Q " + minicapImageQuality + "\"";
-                            minicapProcess = adbClient.shell("\"LD_LIBRARY_PATH=/data/local/tmp\"", "/data/local/tmp/minicap", minicapArgs);
+                            String minicapArgs = String.format("-P %dx%d@%dx%d/0 -Q %d", deviceViewport.getWidth(), deviceViewport.getHeight(), targetWidth, targetHeight, minicapImageQuality);
+                            minicapProcess = adbClient.shell("LD_LIBRARY_PATH=/data/local/tmp", "/data/local/tmp/minicap", minicapArgs);
                         }
                     };
 
