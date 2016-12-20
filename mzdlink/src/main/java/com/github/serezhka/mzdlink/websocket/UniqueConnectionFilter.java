@@ -20,19 +20,17 @@ public class UniqueConnectionFilter extends AbstractRemoteAddressFilter<InetSock
 
     @Override
     protected boolean accept(ChannelHandlerContext ctx, InetSocketAddress socketAddress) throws Exception {
-        synchronized (this) {
-            if (connected) {
-                LOGGER.info("Client " + socketAddress + " connection rejected!");
-                return false;
-            } else {
-                LOGGER.info("Client " + socketAddress + " connection accepted!");
-                connected = true;
-                ctx.channel().closeFuture().addListener((ChannelFutureListener) future -> {
-                    LOGGER.info("Client " + socketAddress + " disconnected!");
-                    connected = false;
-                });
-                return true;
-            }
+        if (connected) {
+            LOGGER.info("Client " + socketAddress + " connection rejected!");
+            return false;
+        } else {
+            LOGGER.info("Client " + socketAddress + " connection accepted!");
+            connected = true;
+            ctx.channel().closeFuture().addListener((ChannelFutureListener) future -> {
+                LOGGER.info("Client " + socketAddress + " disconnected!");
+                connected = false;
+            });
+            return true;
         }
     }
 }

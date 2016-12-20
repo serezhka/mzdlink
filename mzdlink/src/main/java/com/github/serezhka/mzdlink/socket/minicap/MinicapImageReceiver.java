@@ -39,9 +39,7 @@ public abstract class MinicapImageReceiver extends SimpleChannelInboundHandler<B
             } else if (imageFrame == null) {
 
                 // Read image frame size and allocate new image buffer
-                if (msg.readableBytes() >= 4)
-                    imageFrame = ByteBufAllocator.DEFAULT.buffer((int) msg.readUnsignedIntLE()); // FIXME default, heap or direct
-
+                imageFrame = ByteBufAllocator.DEFAULT.ioBuffer((int) msg.readUnsignedIntLE());
             } else {
 
                 // Read image frame

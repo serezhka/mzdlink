@@ -14,12 +14,9 @@ public abstract class MinitouchGestureSender extends ChannelHandlerAdapter {
     private ChannelHandlerContext ctx;
 
     public void sendGesture(ByteBuf gesture) {
-        try {
-            if (ctx != null) {
-                ctx.writeAndFlush(gesture);
-            }
-        } catch (Exception ignored) {
-        }
+        if (ctx != null) {
+            ctx.writeAndFlush(gesture);
+        } else gesture.release();
     }
 
     @Override

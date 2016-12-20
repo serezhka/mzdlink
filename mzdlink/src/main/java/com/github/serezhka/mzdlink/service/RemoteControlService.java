@@ -53,7 +53,9 @@ public class RemoteControlService {
 
             @Override
             public void onReceive(ByteBuf imageFrame) {
-                if (deviceScreenListener != null) deviceScreenListener.onScreenUpdate(imageFrame);
+                if (deviceScreenListener != null) {
+                    deviceScreenListener.onScreenUpdate(imageFrame);
+                } else imageFrame.release();
             }
 
             @Override

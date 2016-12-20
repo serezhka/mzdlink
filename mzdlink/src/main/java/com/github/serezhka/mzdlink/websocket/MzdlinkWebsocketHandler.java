@@ -16,11 +16,9 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Controller;
 
 import javax.annotation.PostConstruct;
 import java.net.InetSocketAddress;
@@ -31,8 +29,6 @@ import java.net.InetSocketAddress;
 @ChannelHandler.Sharable
 @Component
 public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
-
-    private static final Logger LOGGER = Logger.getLogger(MzdlinkWebsocketHandler.class);
 
     private final RemoteControlService remoteControlService;
     private final NioEventLoopGroup bossGroup;
@@ -88,7 +84,6 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
 
-
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         remoteControlService.processGesture(msg.content().retain());
@@ -105,12 +100,8 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
     }
 
     private void sendBase64ByteBuf(ByteBuf message) {
-        try {
-            if (ctx != null) {
-                ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message)));
-            }
-        } catch (Exception e) {
-            LOGGER.debug(e);
-        }
+        if (ctx != null) {
+            ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message)));
+        } else message.release();
     }
 }
