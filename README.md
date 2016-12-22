@@ -17,9 +17,6 @@ make them executable with chmod 0755
     open http://jsfiddle.net/serezhka/x6j1zcde/ (not https to make websockets work)
 
 ### dev notes
-
-##### todo
- * try netty-transport-native-epoll
       
 ##### evtest arm cross compile
     sudo apt-get install gcc-arm-linux-gnueabi
