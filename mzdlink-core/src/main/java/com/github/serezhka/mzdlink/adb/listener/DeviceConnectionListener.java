@@ -1,53 +1,62 @@
 package com.github.serezhka.mzdlink.adb.listener;
 
-import com.github.serezhka.mzdlink.adb.AdbClient;
-import com.github.serezhka.mzdlink.adb.exception.AdbException;
 import org.apache.log4j.Logger;
+import se.vidstige.jadb.JadbConnection;
+import se.vidstige.jadb.JadbDevice;
+import se.vidstige.jadb.JadbException;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
  */
-@Deprecated
 public abstract class DeviceConnectionListener extends Thread {
 
     private static final Logger LOGGER = Logger.getLogger(DeviceConnectionListener.class);
 
-    private final AdbClient adbClient;
+    private final JadbConnection jadbConnection;
     private final int delay;
 
-    public DeviceConnectionListener(AdbClient adbClient, int delay) {
-        this.adbClient = adbClient;
+    private JadbDevice trackingDevice;
+
+    public DeviceConnectionListener(JadbConnection jadbConnection, int delay) {
+        this.jadbConnection = jadbConnection;
         this.delay = delay;
     }
 
     @Override
     public void run() {
-        boolean deviceConnected = false;
         while (!interrupted()) {
             try {
-                boolean adbDeviceConnected = adbClient.isDeviceConnected();
-                if (!deviceConnected) {
-                    if (adbDeviceConnected) {
-                        deviceConnected = true;
-                        onDeviceConnect();
+                if (trackingDevice == null) {
+                    List<JadbDevice> devices = jadbConnection.getDevices();
+                    for (JadbDevice device : devices) {
+                        if (device.getState().equals(JadbDevice.State.Device)) {
+                            onDeviceConnect(trackingDevice = device);
+                            break;
+                        }
                     }
-                } else if (!adbDeviceConnected) {
-                    deviceConnected = false;
-                    onDeviceDisconnect();
+                } else {
+                    if (!trackingDevice.getState().equals(JadbDevice.State.Device)) {
+                        onDeviceDisconnect(trackingDevice);
+                        trackingDevice = null;
+                    }
                 }
-            } catch (AdbException e) {
+            } catch (IOException | JadbException e) {
                 LOGGER.error(e);
-                if (deviceConnected) onDeviceDisconnect();
+                return;
             }
+
             try {
                 sleep(delay);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
                 return;
             }
         }
     }
 
-    public abstract void onDeviceConnect();
+    public abstract void onDeviceConnect(JadbDevice device);
 
-    public abstract void onDeviceDisconnect();
+    public abstract void onDeviceDisconnect(JadbDevice device);
 }

@@ -1,22 +1,27 @@
 package com.github.serezhka.mzdlink.service;
 
-import com.github.serezhka.mzdlink.adb.AdbClient;
 import com.github.serezhka.mzdlink.adb.DeviceViewport;
-import com.github.serezhka.mzdlink.adb.exception.AdbException;
+import com.github.serezhka.mzdlink.adb.listener.DeviceConnectionListener;
 import com.github.serezhka.mzdlink.adb.listener.DeviceViewportListener;
 import com.github.serezhka.mzdlink.socket.ReconnectableSocketFactory;
 import com.github.serezhka.mzdlink.socket.minicap.Header;
 import com.github.serezhka.mzdlink.socket.minicap.MinicapImageReceiver;
 import com.github.serezhka.mzdlink.socket.minitouch.MinitouchGestureSender;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.EventLoopGroup;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import se.vidstige.jadb.JadbConnection;
+import se.vidstige.jadb.JadbDevice;
+import se.vidstige.jadb.JadbException;
+import se.vidstige.jadb.Stream;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.Charset;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
@@ -26,8 +31,7 @@ public class RemoteControlService {
 
     private static final Logger LOGGER = Logger.getLogger(RemoteControlService.class);
 
-    private final AdbClient adbClient;
-    private final EventLoopGroup workerGroup;
+    private final JadbConnection jadbConnection;
     private final ReconnectableSocketFactory reconnectableSocketFactory;
 
     private MinicapImageReceiver minicapImageReceiver;
@@ -37,20 +41,24 @@ public class RemoteControlService {
     private DeviceScreenListener deviceScreenListener;
     private Thread minicapSocketClient;
     private Thread minitouchSocketClient;
-    private Process minicapProcess;
-    private Process minitouchProcess;
+    private Thread minicapProcess;
+    private Thread minitouchProcess;
 
     @Autowired
-    public RemoteControlService(AdbClient adbClient,
-                                EventLoopGroup workerGroup,
+    public RemoteControlService(JadbConnection jadbConnection,
                                 ReconnectableSocketFactory reconnectableSocketFactory) {
-        this.adbClient = adbClient;
-        this.workerGroup = workerGroup;
+        this.jadbConnection = jadbConnection;
         this.reconnectableSocketFactory = reconnectableSocketFactory;
     }
 
     @PostConstruct
     private void init() {
+
+        try {
+            jadbConnection.getHostVersion();
+        } catch (IOException | JadbException e) {
+            throw new RuntimeException("It seems ADB not running", e);
+        }
 
         minicapImageReceiver = new MinicapImageReceiver() {
 
@@ -70,68 +78,71 @@ public class RemoteControlService {
         minitouchGestureSender = new MinitouchGestureSender() {
         };
 
-        new Thread(() -> {
-            while (!Thread.interrupted()) {
+        new DeviceConnectionListener(jadbConnection, getDeviceDelay) {
+            @Override
+            public void onDeviceConnect(JadbDevice device) {
+                LOGGER.info("Device " + device.getSerial() + " connected!");
 
                 try {
-                    LOGGER.info("Waiting for device..");
-                    adbClient.waitForDevice().waitFor();
-                    LOGGER.info("Device connected!");
+                    jadbConnection.setForwarding("tcp:" + minicapPort, "localabstract:minicap");
+                    jadbConnection.setForwarding("tcp:" + minitouchPort, "localabstract:minitouch");
+                } catch (IOException | JadbException e) {
+                    LOGGER.warn("Unable to set socket connection forwardings", e);
+                    return;
+                }
 
-                    adbClient.forward("tcp:" + minicapPort, "localabstract:minicap");
-                    adbClient.forward("tcp:" + minitouchPort, "localabstract:minitouch");
+                if (minitouchProcess == null || !minitouchProcess.isAlive()) {
+                    if (minitouchProcess != null) minitouchProcess.interrupt();
+                    minitouchProcess = createThread(device, "/data/local/tmp/minitouch");
+                    minitouchProcess.start();
+                }
 
-                    // Start minitouch
-                    if (minitouchProcess == null || !minitouchProcess.isAlive()) {
-                        killProcess(minitouchProcess);
-                        minitouchProcess = adbClient.shell("/data/local/tmp/minitouch");
+                deviceViewportListener = new DeviceViewportListener(device, getViewportDelay) {
+                    @Override
+                    public void onDeviceViewportChanged(DeviceViewport deviceViewport) {
+                        LOGGER.info("Device viewport change: " + deviceViewport);
+
+                        if (minicapProcess != null) minicapProcess.interrupt();
+                        int targetWidth = deviceViewport.isLandscape() ? minicapTargetWidth : minicapTargetHeight;
+                        int targetHeight = deviceViewport.isLandscape() ? minicapTargetHeight : minicapTargetWidth;
+                        minicapProcess = createThread(device, "LD_LIBRARY_PATH=/data/local/tmp",
+                                "/data/local/tmp/minicap",
+                                "-P", String.format("%dx%d@%dx%d/0", deviceViewport.getWidth(), deviceViewport.getHeight(), targetWidth, targetHeight),
+                                "-Q", minicapImageQuality + "");
+                        minicapProcess.start();
                     }
+                };
 
-                    deviceViewportListener = new DeviceViewportListener(adbClient, getViewportDelay) {
-                        @Override
-                        public void onDeviceViewportChanged(DeviceViewport deviceViewport) throws AdbException {
+                minicapSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver);
+                minitouchSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender);
 
-                            LOGGER.info("Device viewport change: " + deviceViewport);
+                deviceViewportListener.start();
+                minicapSocketClient.start();
+                minitouchSocketClient.start();
+            }
 
-                            // Start minicap
-                            killProcess(minicapProcess);
-                            int targetWidth = deviceViewport.isLandscape() ? minicapTargetWidth : minicapTargetHeight;
-                            int targetHeight = deviceViewport.isLandscape() ? minicapTargetHeight : minicapTargetWidth;
-                            String minicapArgs = String.format("-P %dx%d@%dx%d/0 -Q %d", deviceViewport.getWidth(), deviceViewport.getHeight(), targetWidth, targetHeight, minicapImageQuality);
-                            minicapProcess = adbClient.shell("LD_LIBRARY_PATH=/data/local/tmp", "/data/local/tmp/minicap", minicapArgs);
-                        }
-                    };
-
-                    minicapSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver);
-                    minitouchSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender);
-
-                    deviceViewportListener.start();
-                    minicapSocketClient.start();
-                    minitouchSocketClient.start();
-                    deviceViewportListener.join();
-
-                    adbClient.stopForwarding();
-
-                } catch (InterruptedException | AdbException e) {
-                    LOGGER.info("remote control service", e);
-                } finally {
-                    if (minicapSocketClient != null) {
-                        minicapSocketClient.interrupt();
-                        minicapSocketClient = null;
-                    }
-                    if (minitouchSocketClient != null) {
-                        minitouchSocketClient.interrupt();
-                        minitouchSocketClient = null;
-                    }
-                    if (deviceViewportListener != null) {
-                        deviceViewportListener.interrupt();
-                        deviceViewportListener = null;
-                    }
-                    killProcess(minicapProcess);
-                    killProcess(minitouchProcess);
+            @Override
+            public void onDeviceDisconnect(JadbDevice device) {
+                LOGGER.info("Device " + device.getSerial() + " disconnected!");
+                try {
+                    jadbConnection.removeForwardings();
+                } catch (IOException | JadbException e) {
+                    LOGGER.warn("Unable to remove socket connection forwardings", e);
+                }
+                if (deviceViewportListener != null) {
+                    deviceViewportListener.interrupt();
+                    deviceViewportListener = null;
+                }
+                if (minicapSocketClient != null) {
+                    minicapSocketClient.interrupt();
+                    minicapSocketClient = null;
+                }
+                if (minitouchSocketClient != null) {
+                    minitouchSocketClient.interrupt();
+                    minitouchSocketClient = null;
                 }
             }
-        }).start();
+        }.start();
     }
 
     public void processGesture(ByteBuf gesture) {
@@ -149,14 +160,33 @@ public class RemoteControlService {
         void onScreenUpdate(ByteBuf image);
     }
 
-    private void killProcess(Process process) {
-        if (process != null) {
-            process.destroy();
-            //noinspection StatementWithEmptyBody
-            while (process.isAlive()) {
+    private Thread createThread(JadbDevice device, String command, String... args) {
+        return new Thread() {
+            InputStream inputStream;
+
+            @Override
+            public void run() {
+                try {
+                    Stream.readAll(inputStream = device.executeShell(command, args), Charset.forName("UTF-8"));
+                } catch (IOException | JadbException e) {
+                    LOGGER.debug(e);
+                }
             }
-        }
+
+            @Override
+            public void interrupt() {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    LOGGER.debug(e);
+                }
+                super.interrupt();
+            }
+        };
     }
+
+    @Value("${config.adb.getDeviceDelay}")
+    private int getDeviceDelay;
 
     @Value("${config.adb.getViewportDelay}")
     private int getViewportDelay;
@@ -169,9 +199,6 @@ public class RemoteControlService {
 
     @Value("${config.minicap.reconnectDelay}")
     private int minicapReconnectDelay;
-
-    @Value("${config.minicap.bufferSize}")
-    private int minicapBufferSize;
 
     @Value("${config.minicap.targetWidth}")
     private int minicapTargetWidth;
@@ -190,7 +217,4 @@ public class RemoteControlService {
 
     @Value("${config.minitouch.reconnectDelay}")
     private int minitouchReconnectDelay;
-
-    @Value("${config.minitouch.bufferSize}")
-    private int minitouchBufferSize;
 }

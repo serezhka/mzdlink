@@ -101,6 +101,7 @@ public class MzdlinkWebsocketHandler extends SimpleChannelInboundHandler<TextWeb
     private void sendBase64ByteBuf(ByteBuf message) {
         if (ctx != null) {
             ctx.executor().execute(() -> ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message))));
+            //ctx.writeAndFlush(new TextWebSocketFrame(Base64.encode(message)));
         } else message.release();
     }
 }

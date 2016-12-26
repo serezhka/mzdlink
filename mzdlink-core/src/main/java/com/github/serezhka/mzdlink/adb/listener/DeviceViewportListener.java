@@ -1,9 +1,16 @@
 package com.github.serezhka.mzdlink.adb.listener;
 
-import com.github.serezhka.mzdlink.adb.AdbClient;
 import com.github.serezhka.mzdlink.adb.DeviceViewport;
-import com.github.serezhka.mzdlink.adb.exception.AdbException;
 import org.apache.log4j.Logger;
+import se.vidstige.jadb.JadbDevice;
+import se.vidstige.jadb.JadbException;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Sergei Fedorov (serezhka@xakep.ru)
@@ -11,31 +18,46 @@ import org.apache.log4j.Logger;
 public abstract class DeviceViewportListener extends Thread {
 
     private static final Logger LOGGER = Logger.getLogger(DeviceViewportListener.class);
+    private static final Pattern PATTERN_VIEWPORT = Pattern.compile(" cur=(.*?)x(.*?) ");
 
-    private final AdbClient adbClient;
+    private final JadbDevice jadbDevice;
     private final int delay;
 
     private DeviceViewport deviceViewport;
 
-    public DeviceViewportListener(AdbClient adbClient, int delay) {
-        this.adbClient = adbClient;
+    public DeviceViewportListener(JadbDevice jadbDevice, int delay) {
+        this.jadbDevice = jadbDevice;
         this.delay = delay;
     }
 
     @Override
     public void run() {
-        DeviceViewport tmp;
+
+        DeviceViewport tmp = null;
+
         while (!interrupted()) {
-            try {
-                tmp = adbClient.getDeviceViewport();
-                if (deviceViewport == null || deviceViewport.isLandscape() != tmp.isLandscape()) {
+            try (InputStream inputStream = jadbDevice.executeShell("dumpsys", "window", "displays")) {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                Matcher viewportMatcher;
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    viewportMatcher = PATTERN_VIEWPORT.matcher(line);
+                    if (viewportMatcher.find()) {
+                        tmp = new DeviceViewport(
+                                Integer.parseInt(viewportMatcher.group(1)),
+                                Integer.parseInt(viewportMatcher.group(2)));
+                    }
+                }
+
+                if (tmp != null && (deviceViewport == null || deviceViewport.isLandscape() != tmp.isLandscape())) {
                     deviceViewport = tmp;
                     onDeviceViewportChanged(deviceViewport);
                 }
-            } catch (AdbException e) {
-                LOGGER.debug("device disconnected ?", e);
+            } catch (IOException | JadbException e) {
+                LOGGER.error(e);
                 return;
             }
+
             try {
                 sleep(delay);
             } catch (InterruptedException e) {
@@ -44,5 +66,5 @@ public abstract class DeviceViewportListener extends Thread {
         }
     }
 
-    public abstract void onDeviceViewportChanged(DeviceViewport deviceViewport) throws AdbException;
+    public abstract void onDeviceViewportChanged(DeviceViewport deviceViewport);
 }

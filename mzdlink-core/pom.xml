@@ -19,7 +19,15 @@
         <log4j.version>1.2.17</log4j.version>
         <netty.version>4.1.6.Final</netty.version>
         <spring.version>4.3.4.RELEASE</spring.version>
+        <jadb.version>8d8d685</jadb.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 
     <dependencies>
 
@@ -46,6 +54,12 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>${netty.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.serezhka</groupId>
+            <artifactId>jadb</artifactId>
+            <version>${jadb.version}</version>
         </dependency>
 
     </dependencies>

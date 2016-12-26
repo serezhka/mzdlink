@@ -10,19 +10,19 @@
     </appender>
 
     <category name="org.springframework">
-        <priority value="debug"/>
+        <priority value="info"/>
     </category>
 
     <category name="io.netty">
-        <priority value="debug"/>
+        <priority value="info"/>
     </category>
 
     <category name="com.github.serezhka.mzdlink">
-        <priority value="debug"/>
+        <priority value="info"/>
     </category>
 
     <root>
-        <priority value="debug"/>
+        <priority value="info"/>
         <appender-ref ref="console"/>
     </root>
 
