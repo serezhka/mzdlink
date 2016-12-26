@@ -32,13 +32,13 @@ public abstract class DeviceConnectionListener extends Thread {
                 if (trackingDevice == null) {
                     List<JadbDevice> devices = jadbConnection.getDevices();
                     for (JadbDevice device : devices) {
-                        if (device.getState().equals(JadbDevice.State.Device)) {
+                        if (device.getState().equals(JadbDevice.State.DEVICE)) {
                             onDeviceConnect(trackingDevice = device);
                             break;
                         }
                     }
                 } else {
-                    if (!trackingDevice.getState().equals(JadbDevice.State.Device)) {
+                    if (!trackingDevice.getState().equals(JadbDevice.State.DEVICE)) {
                         onDeviceDisconnect(trackingDevice);
                         trackingDevice = null;
                     }
