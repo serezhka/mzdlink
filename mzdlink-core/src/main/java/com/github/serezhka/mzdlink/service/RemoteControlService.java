@@ -113,8 +113,10 @@ public class RemoteControlService {
                     }
                 };
 
-                minicapSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minicapIp, minicapPort), minicapReconnectDelay, minicapImageReceiver);
-                minitouchSocketClient = reconnectableSocketFactory.connect(new InetSocketAddress(minitouchIp, minitouchPort), minitouchReconnectDelay, minitouchGestureSender);
+                minicapSocketClient = reconnectableSocketFactory.connect(
+                        new InetSocketAddress(minicapIp, minicapPort), minicapBufferSize, minicapReconnectDelay, minicapImageReceiver);
+                minitouchSocketClient = reconnectableSocketFactory.connect(
+                        new InetSocketAddress(minitouchIp, minitouchPort), minitouchBufferSize, minitouchReconnectDelay, minitouchGestureSender);
 
                 deviceViewportListener.start();
                 minicapSocketClient.start();
@@ -197,6 +199,9 @@ public class RemoteControlService {
     @Value("${config.minicap.port}")
     private int minicapPort;
 
+    @Value("${config.minicap.bufferSize}")
+    private int minicapBufferSize;
+
     @Value("${config.minicap.reconnectDelay}")
     private int minicapReconnectDelay;
 
@@ -214,6 +219,9 @@ public class RemoteControlService {
 
     @Value("${config.minitouch.port}")
     private int minitouchPort;
+
+    @Value("${config.minitouch.bufferSize}")
+    private int minitouchBufferSize;
 
     @Value("${config.minitouch.reconnectDelay}")
     private int minitouchReconnectDelay;

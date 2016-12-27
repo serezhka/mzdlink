@@ -45,6 +45,10 @@ public abstract class DeviceConnectionListener extends Thread {
                 }
             } catch (IOException | JadbException e) {
                 LOGGER.error(e);
+                if (trackingDevice != null) {
+                    onDeviceDisconnect(trackingDevice);
+                    trackingDevice = null;
+                }
                 return;
             }
 

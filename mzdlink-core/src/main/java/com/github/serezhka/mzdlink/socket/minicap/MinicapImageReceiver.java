@@ -14,38 +14,42 @@ public abstract class MinicapImageReceiver extends SimpleChannelInboundHandler<B
 
     private Header header;
     private ByteBuf imageFrame;
+    private ByteBuf imageFrameSize = ByteBufAllocator.DEFAULT.ioBuffer(Integer.BYTES, Integer.BYTES);
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
 
-        while (msg.readableBytes() > 0) {
+        if (header == null) {
 
-            if (header == null) {
+            // Read minicap's header
+            header = new Header();
+            header.setVersion(msg.readUnsignedByte());
+            header.setSize(msg.readUnsignedByte());
+            header.setPid((int) msg.readUnsignedIntLE());
+            header.setRealWidth((int) msg.readUnsignedIntLE());
+            header.setRealHeight((int) msg.readUnsignedIntLE());
+            header.setVirtualWidth((int) msg.readUnsignedIntLE());
+            header.setVirtualHeight((int) msg.readUnsignedIntLE());
+            header.setOrientation(msg.readUnsignedByte());
+            header.setQuirk(msg.readUnsignedByte());
 
-                // Read minicap's header
-                header = new Header();
-                header.setVersion(msg.readUnsignedByte());
-                header.setSize(msg.readUnsignedByte());
-                header.setPid((int) msg.readUnsignedIntLE());
-                header.setRealWidth((int) msg.readUnsignedIntLE());
-                header.setRealHeight((int) msg.readUnsignedIntLE());
-                header.setVirtualWidth((int) msg.readUnsignedIntLE());
-                header.setVirtualHeight((int) msg.readUnsignedIntLE());
-                header.setOrientation(msg.readUnsignedByte());
-                header.setQuirk(msg.readUnsignedByte());
+            onHeaderReceived(header);
+        }
 
-                onHeaderReceived(header);
+        while (msg.isReadable()) {
 
-            } else if (imageFrame == null) {
+            if (imageFrame == null) {
 
-                // Read image frame size and allocate new image buffer
-                if (msg.readableBytes() > 4)
-                    imageFrame = ByteBufAllocator.DEFAULT.ioBuffer((int) msg.readUnsignedIntLE());
+                // Read image frame size dealing with fragmentation issue
+                msg.readBytes(imageFrameSize, Math.min(imageFrameSize.writableBytes(), msg.readableBytes()));
+                if (!imageFrameSize.isWritable()) {
+                    imageFrame = ByteBufAllocator.DEFAULT.ioBuffer((int) imageFrameSize.readUnsignedIntLE());
+                    imageFrameSize.clear();
+                }
             } else {
 
                 // Read image frame
                 msg.readBytes(imageFrame, Math.min(imageFrame.writableBytes(), msg.readableBytes()));
-
                 if (!imageFrame.isWritable()) {
                     onReceive(imageFrame);
                     imageFrame = null;
@@ -58,6 +62,7 @@ public abstract class MinicapImageReceiver extends SimpleChannelInboundHandler<B
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         header = null;
         imageFrame = null;
+        imageFrameSize.clear();
     }
 
     public abstract void onReceive(ByteBuf imageFrame);

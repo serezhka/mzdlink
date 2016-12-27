@@ -52,7 +52,7 @@ public class MinicapImageReceiverTest extends JFrame {
         };
 
         ReconnectableSocketFactory reconnectableSocketFactory = new ReconnectableSocketFactory(new NioEventLoopGroup(), NioSocketChannel.class);
-        Thread minicapClient = reconnectableSocketFactory.connect(socketAddress, 2000, minicapImageReceiver);
+        Thread minicapClient = reconnectableSocketFactory.connect(socketAddress, 4096, 2000, minicapImageReceiver);
         minicapClient.start();
 
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);

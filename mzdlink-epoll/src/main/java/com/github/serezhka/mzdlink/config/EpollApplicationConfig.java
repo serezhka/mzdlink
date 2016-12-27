@@ -13,6 +13,12 @@ import org.springframework.context.annotation.Bean;
  */
 public class EpollApplicationConfig extends ApplicationConfig {
 
+    /*static {
+        System.setProperty("io.netty.eventLoopThreads", "4");
+        System.setProperty("io.netty.allocator.numDirectArenas", "4");
+        System.setProperty("io.netty.allocator.numHeapArenas", "4");
+    }*/
+
     @Bean
     public static EventLoopGroup bossGroup() {
         return new EpollEventLoopGroup();

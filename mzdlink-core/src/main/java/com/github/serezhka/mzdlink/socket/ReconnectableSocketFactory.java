@@ -1,10 +1,7 @@
 package com.github.serezhka.mzdlink.socket;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +27,7 @@ public class ReconnectableSocketFactory {
         this.socketChannelClass = socketChannelClass;
     }
 
-    public Thread connect(SocketAddress socketAddress, int reconnectDelay, ChannelHandler channelHandler) {
+    public Thread connect(SocketAddress socketAddress, int bufferSize, int reconnectDelay, ChannelHandler channelHandler) {
         return new Thread(() -> {
             while (!Thread.interrupted()) {
                 Bootstrap bootstrap = new Bootstrap();
@@ -38,6 +35,8 @@ public class ReconnectableSocketFactory {
                     bootstrap.group(workerGroup)
                             .channel(socketChannelClass)
                             .remoteAddress(socketAddress)
+                            .option(ChannelOption.SO_RCVBUF, bufferSize)
+                            .option(ChannelOption.SO_SNDBUF, bufferSize)
                             .handler(new ChannelInitializer<SocketChannel>() {
                                 @Override
                                 public void initChannel(SocketChannel ch) throws Exception {
