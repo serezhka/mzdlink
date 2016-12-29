@@ -15,11 +15,8 @@
     <url>https://github.com/serezhka</url>
 
     <properties>
-        <junit.version>4.12</junit.version>
-        <log4j.version>1.2.17</log4j.version>
         <netty.version>4.1.6.Final</netty.version>
-        <spring.version>4.3.4.RELEASE</spring.version>
-        <jadb.version>b2e8a6d</jadb.version>
+        <jadb.version>69eae89</jadb.version>
     </properties>
 
     <repositories>
@@ -30,25 +27,6 @@
     </repositories>
 
     <dependencies>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
 
         <dependency>
             <groupId>io.netty</groupId>
